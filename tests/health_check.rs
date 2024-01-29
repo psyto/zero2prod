@@ -1,5 +1,7 @@
+//! tests/health_check.rs
+use sqlx::{Connection, PgConnection};
 use std::net::TcpListener;
-use zero2prod::startup::run;
+use zero2prod::{configuration::get_configuration, startup::run};
 
 fn spawn_app() -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
@@ -34,6 +36,13 @@ async fn health_check_works() {
 async fn subscribe_returns_a_200_for_valid_form_data() {
     // Arrange
     let app_address = spawn_app();
+    let configuration = get_configuration().expect("Failed to read configuration");
+    let connection_string = configuration.database.connection_string();
+    // The `Connection` trait MUST be in scope for us to invoke
+    // `PgConnection::connect` - it is not an inherent method of the struct!
+    let connection = PgConnection::connect(&connection_string)
+    .await
+    .expect("Failed to connect to Postgres");
     let client = reqwest::Client::new();
 
     // Act
